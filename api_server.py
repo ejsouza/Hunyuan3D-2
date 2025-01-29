@@ -186,11 +186,22 @@ class ModelWorker:
             mesh = FaceReducer()(mesh, max_facenum=params.get('face_count', 40000))
             mesh = self.pipeline_tex(mesh, image)
 
-        with tempfile.NamedTemporaryFile(suffix='.glb', delete=True) as temp_file:
-            mesh.export(temp_file.name)
-            mesh = trimesh.load(temp_file.name)
+        # with tempfile.NamedTemporaryFile(suffix='.glb', delete=True) as temp_file:
+        #     mesh.export(temp_file.name)
+        #     mesh = trimesh.load(temp_file.name)
+        #     save_path = os.path.join(SAVE_DIR, f'{str(uid)}.glb')
+
+        #     mesh.export(save_path)
+
+        fd, temp_path = tempfile.mkstemp(suffix='.glb')
+        try:
+            mesh.export(temp_path)
+            mesh = trimesh.load(temp_path)
             save_path = os.path.join(SAVE_DIR, f'{str(uid)}.glb')
             mesh.export(save_path)
+        finally:
+            os.close(fd)
+            os.remove(temp_path)
 
         torch.cuda.empty_cache()
         return save_path, uid
@@ -253,6 +264,10 @@ async def status(uid: str):
         base64_str = base64.b64encode(open(save_file_path, 'rb').read()).decode()
         response = {'status': 'completed', 'model_base64': base64_str}
         return JSONResponse(response, status_code=200)
+    
+@app.get("/health")
+async def health():
+    return JSONResponse("Ok", status_code=200)
 
 
 if __name__ == "__main__":
@@ -268,4 +283,4 @@ if __name__ == "__main__":
     model_semaphore = asyncio.Semaphore(args.limit_model_concurrency)
 
     worker = ModelWorker(model_path=args.model_path, device=args.device)
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    uvicorn.run(app, host=args.host, port=int(args.port), log_level="info")
