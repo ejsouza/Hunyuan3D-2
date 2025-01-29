@@ -295,6 +295,10 @@ async def status(uid: str):
         base64_str = base64.b64encode(open(save_file_path, 'rb').read()).decode()
         response = {'status': 'completed', 'model_base64': base64_str}
         return JSONResponse(response, status_code=200)
+    
+@app.get("/health")
+async def health():
+    return JSONResponse("Ok", status_code=200)
 
 
 if __name__ == "__main__":
